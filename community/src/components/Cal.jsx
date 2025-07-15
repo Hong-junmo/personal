@@ -2,7 +2,7 @@ import React from 'react'
 
 const Text = () => {
   return (
-    <div>Text</div>
+    <div>계산기</div>
   )
 }
 
