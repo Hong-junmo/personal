@@ -1,5 +1,5 @@
 import React from 'react'
-import Text from './Cal'
+import Text from '../page/Cal'
 import Main from './Main'
 import { useNavigate } from 'react-router-dom'
 
