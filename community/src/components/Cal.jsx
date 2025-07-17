@@ -1,9 +1,11 @@
 import React from 'react'
 
-const Text = () => {
+const Cal = () => {
   return (
-    <div>계산기</div>
+    <div>
+     <p>계산기</p>
+    </div>
   )
 }
 
-export default Text
+export default Cal
