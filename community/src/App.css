@@ -2,28 +2,27 @@ h3 {
   color: skyblue;
 }
 
-h3:hover{
+h3:hover {
   color: white;
 }
 
 .logo {
-  display: flex;
-  margin-left: 10px;
+  margin-left: 20px;
 }
 
 .head {
   background-color: black;
   display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 body {
   margin: 0px;
 }
 
-.link{
-  margin-left: 75%;
-}
-
-.title{
-  margin-left: 10px;
+.nav-right {
+  display: flex;
+  gap: 20px;
+  margin-right: 10px;
 }

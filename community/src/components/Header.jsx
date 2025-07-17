@@ -18,12 +18,15 @@ const Header = () => {
       navigate("cal");
     }
 
+
+
   return (
     <div className='head'>
             <h3 className='logo' onClick={mainnav}>무언가</h3>
-            <h3 className='link' onClick={nav}>게시글</h3>
-            <h3 className='title' onClick={calnav}>계산기</h3>
-            <p>테스트</p>
+            <div className='nav-right'>
+                <h3 className='link' onClick={nav}>게시글</h3>
+                <h3 className='title' onClick={calnav}>계산기</h3>
+            </div>
     </div>
   )
 }
