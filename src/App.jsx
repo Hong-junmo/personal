@@ -2,10 +2,10 @@ import { useState } from 'react'
 import viteLogo from '/vite.svg'
 import './App.css'
 import Header from './components/Header'
-import Cal from './components/Cal'
+import Cal from './page/Cal'
 import Main from './components/Main'
 import { Route, Router, Routes } from 'react-router-dom'
-import Write from './components/Write'
+import Write from './page/Write'
 
 function App() {
 
