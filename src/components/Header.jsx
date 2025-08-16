@@ -3,16 +3,14 @@ import { useNavigate } from 'react-router-dom'
 
 const Header = () => {
 
-    const navigate = useNavigate();
-    const mainnav =() => {
-      navigate("/");
-    }
+  const navigate = useNavigate();
+  const mainnav = () => {
+    navigate("/");
+  }
 
-    const nav = () => {
-      navigate("test");
-    }
-
-
+  const nav = () => {
+    navigate("test");
+  }
 
   return (
     <div className='head'>
