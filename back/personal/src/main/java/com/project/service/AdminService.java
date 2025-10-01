@@ -2,15 +2,23 @@ package com.project.service;
 
 import com.project.dto.AdminUserResponse;
 import com.project.entity.Post;
+import com.project.entity.PostImage;
+import com.project.entity.PostLike;
 import com.project.entity.User;
 import com.project.entity.Comment;
 import com.project.repository.PostRepository;
+import com.project.repository.PostImageRepository;
+import com.project.repository.PostLikeRepository;
 import com.project.repository.UserRepository;
 import com.project.repository.CommentRepository;
 import com.project.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -21,6 +29,8 @@ public class AdminService {
     
     private final UserRepository userRepository;
     private final PostRepository postRepository;
+    private final PostImageRepository postImageRepository;
+    private final PostLikeRepository postLikeRepository;
     private final CommentRepository commentRepository;
     private final JwtUtil jwtUtil;
     
@@ -145,6 +155,18 @@ public class AdminService {
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다."));
         
+        // 관련 이미지 파일 및 DB 데이터 삭제
+        deletePostImages(postId);
+        
+        // 관련 댓글들 삭제
+        List<Comment> comments = commentRepository.findByPostIdOrderByCreatedAtAsc(postId);
+        commentRepository.deleteAll(comments);
+        
+        // 관련 좋아요/비추천 삭제
+        List<PostLike> likes = postLikeRepository.findByPostId(postId);
+        postLikeRepository.deleteAll(likes);
+        
+        // 게시글 삭제
         postRepository.delete(post);
     }
     
@@ -250,6 +272,31 @@ public class AdminService {
         user.setSuspensionReason(null);
         
         userRepository.save(user);
+    }
+    
+    private void deletePostImages(Long postId) {
+        // DB에서 해당 게시글의 이미지 정보 조회
+        List<PostImage> images = postImageRepository.findByPostIdOrderByImageOrder(postId);
+        
+        // 실제 파일 삭제
+        for (PostImage image : images) {
+            try {
+                Path filePath = Paths.get(image.getFilePath());
+                if (Files.exists(filePath)) {
+                    Files.delete(filePath);
+                    System.out.println("관리자 권한으로 이미지 파일 삭제 완료: " + image.getStoredFilename());
+                } else {
+                    System.out.println("이미지 파일이 존재하지 않음: " + image.getStoredFilename());
+                }
+            } catch (IOException e) {
+                System.err.println("이미지 파일 삭제 실패: " + image.getStoredFilename() + " - " + e.getMessage());
+                // 파일 삭제 실패해도 DB 데이터는 삭제하도록 계속 진행
+            }
+        }
+        
+        // DB에서 이미지 정보 삭제
+        postImageRepository.deleteAll(images);
+        System.out.println("관리자 권한으로 게시글 " + postId + "의 이미지 " + images.size() + "개 삭제 완료");
     }
     
     private AdminUserResponse convertToAdminUserResponse(User user) {

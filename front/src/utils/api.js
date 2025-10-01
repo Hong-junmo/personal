@@ -88,15 +88,39 @@ export const apiDelete = (url, options = {}) => {
 };
 
 // FormData 전용 POST 요청 (파일 업로드용)
-export const apiPostFormData = (url, formData, options = {}) => {
+export const apiPostFormData = async (url, formData, options = {}) => {
     const token = localStorage.getItem('token');
     
-    return apiRequest(url, {
+    const finalOptions = {
         method: options.method || 'POST',
         body: formData,
         headers: {
             ...(token && { 'Authorization': `Bearer ${token}` }),
             ...options.headers
+            // Content-Type은 FormData 사용 시 브라우저가 자동으로 설정하므로 제외
         }
-    });
+    };
+
+    try {
+        const response = await fetch(`${API_BASE_URL}${url}`, finalOptions);
+        
+        // 401 Unauthorized 응답 처리
+        if (response.status === 401) {
+            const errorData = await response.json().catch(() => ({}));
+            
+            // 정지 관련 에러인 경우 자동 로그아웃
+            if (errorData.error && (
+                errorData.error.includes('정지') || 
+                errorData.error.includes('SUSPENDED') ||
+                errorData.error.includes('영구 정지')
+            )) {
+                handleUnauthorized();
+                throw new Error(errorData.error || '계정이 정지되었습니다.');
+            }
+        }
+        
+        return response;
+    } catch (error) {
+        throw error;
+    }
 };

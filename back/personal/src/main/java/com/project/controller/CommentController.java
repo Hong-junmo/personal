@@ -32,6 +32,9 @@ public class CommentController {
             return ResponseEntity.ok(comment);
         } catch (Exception e) {
             e.printStackTrace();
+            if (e.getMessage() != null && e.getMessage().startsWith("SUSPENDED:")) {
+                return ResponseEntity.status(401).body("{\"message\":\"" + e.getMessage().replace("SUSPENDED:", "") + "\"}");
+            }
             return ResponseEntity.badRequest().body("{\"message\":\"" + e.getMessage() + "\"}");
         }
     }
@@ -50,6 +53,9 @@ public class CommentController {
             return ResponseEntity.ok().body("{\"message\":\"댓글이 삭제되었습니다.\"}");
         } catch (Exception e) {
             e.printStackTrace();
+            if (e.getMessage() != null && e.getMessage().startsWith("SUSPENDED:")) {
+                return ResponseEntity.status(401).body("{\"message\":\"" + e.getMessage().replace("SUSPENDED:", "") + "\"}");
+            }
             return ResponseEntity.badRequest().body("{\"message\":\"" + e.getMessage() + "\"}");
         }
     }

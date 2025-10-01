@@ -129,14 +129,49 @@ public class PostService {
         for (int i = 0; i < images.size(); i++) {
             MultipartFile image = images.get(i);
             try {
+                // 파일이 비어있는지 확인
+                if (image.isEmpty()) {
+                    System.out.println("빈 파일 건너뛰기: " + image.getOriginalFilename());
+                    continue;
+                }
+                
                 String originalFilename = image.getOriginalFilename();
-                String fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
+                if (originalFilename == null || originalFilename.trim().isEmpty()) {
+                    originalFilename = "unnamed_file_" + System.currentTimeMillis();
+                }
+                
+                // 파일 확장자 추출 (안전하게)
+                String fileExtension = "";
+                if (originalFilename.contains(".")) {
+                    fileExtension = originalFilename.substring(originalFilename.lastIndexOf("."));
+                } else {
+                    // 확장자가 없는 경우 MIME 타입으로 추정
+                    String mimeType = image.getContentType();
+                    if (mimeType != null) {
+                        if (mimeType.contains("jpeg") || mimeType.contains("jpg")) {
+                            fileExtension = ".jpg";
+                        } else if (mimeType.contains("png")) {
+                            fileExtension = ".png";
+                        } else if (mimeType.contains("gif")) {
+                            fileExtension = ".gif";
+                        } else if (mimeType.contains("webp")) {
+                            fileExtension = ".webp";
+                        } else {
+                            fileExtension = ".jpg"; // 기본값
+                        }
+                    } else {
+                        fileExtension = ".jpg"; // 기본값
+                    }
+                }
+                
                 String storedFilename = UUID.randomUUID().toString() + fileExtension;
                 String filePath = uploadDir + storedFilename;
                 
                 // 파일 저장
                 Path path = Paths.get(filePath);
                 Files.write(path, image.getBytes());
+                
+                System.out.println("이미지 파일 저장 완료: " + storedFilename + " (원본: " + originalFilename + ")");
                 
                 // DB에 이미지 정보 저장
                 PostImage postImage = new PostImage();
@@ -151,7 +186,12 @@ public class PostService {
                 postImageRepository.save(postImage);
                 
             } catch (IOException e) {
+                System.err.println("이미지 저장 실패: " + image.getOriginalFilename() + " - " + e.getMessage());
                 throw new RuntimeException("이미지 저장 중 오류가 발생했습니다: " + e.getMessage());
+            } catch (Exception e) {
+                System.err.println("이미지 처리 중 예상치 못한 오류: " + e.getMessage());
+                e.printStackTrace();
+                throw new RuntimeException("이미지 처리 중 오류가 발생했습니다: " + e.getMessage());
             }
         }
     }
@@ -202,8 +242,18 @@ public class PostService {
             throw new RuntimeException("게시글을 삭제할 권한이 없습니다.");
         }
         
-        // TODO: 관련 이미지 파일도 삭제
+        // 관련 이미지 파일 및 DB 데이터 삭제
+        deletePostImages(id);
         
+        // 관련 댓글들 삭제
+        List<Comment> comments = commentRepository.findByPostIdOrderByCreatedAtAsc(id);
+        commentRepository.deleteAll(comments);
+        
+        // 관련 좋아요/비추천 삭제
+        List<PostLike> likes = postLikeRepository.findByPostId(id);
+        postLikeRepository.deleteAll(likes);
+        
+        // 게시글 삭제
         postRepository.delete(post);
     }
     
@@ -432,6 +482,31 @@ public class PostService {
                 .updatedAt(comment.getUpdatedAt())
                 .replies(replyResponses)
                 .build();
+    }
+    
+    private void deletePostImages(Long postId) {
+        // DB에서 해당 게시글의 이미지 정보 조회
+        List<PostImage> images = postImageRepository.findByPostIdOrderByImageOrder(postId);
+        
+        // 실제 파일 삭제
+        for (PostImage image : images) {
+            try {
+                Path filePath = Paths.get(image.getFilePath());
+                if (Files.exists(filePath)) {
+                    Files.delete(filePath);
+                    System.out.println("이미지 파일 삭제 완료: " + image.getStoredFilename());
+                } else {
+                    System.out.println("이미지 파일이 존재하지 않음: " + image.getStoredFilename());
+                }
+            } catch (IOException e) {
+                System.err.println("이미지 파일 삭제 실패: " + image.getStoredFilename() + " - " + e.getMessage());
+                // 파일 삭제 실패해도 DB 데이터는 삭제하도록 계속 진행
+            }
+        }
+        
+        // DB에서 이미지 정보 삭제
+        postImageRepository.deleteAll(images);
+        System.out.println("게시글 " + postId + "의 이미지 " + images.size() + "개 삭제 완료");
     }
     
     private PostResponse convertToResponse(Post post) {

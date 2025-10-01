@@ -42,19 +42,25 @@ public class PostController {
             System.out.println("POST /api/posts 호출됨");
             System.out.println("Title: " + title);
             System.out.println("Content: " + content);
-            System.out.println("Token: " + token);
+            System.out.println("Images count: " + (images != null ? images.size() : 0));
+            System.out.println("Token: " + (token != null ? "Bearer ***" : "null"));
             
             if (token == null || !token.startsWith("Bearer ")) {
+                System.out.println("인증 토큰이 없거나 잘못됨");
                 return ResponseEntity.badRequest().body("{\"message\":\"인증이 필요합니다.\"}");
             }
             
             String username = postService.getUsernameFromToken(token.replace("Bearer ", ""));
+            System.out.println("Username: " + username);
+            
             PostResponse post = postService.createPost(title, content, images, username);
+            System.out.println("게시글 작성 성공: " + post.getId());
             return ResponseEntity.ok(post);
         } catch (Exception e) {
+            System.err.println("게시글 작성 오류: " + e.getMessage());
             e.printStackTrace();
-            if (e.getMessage().startsWith("SUSPENDED:")) {
-                return ResponseEntity.badRequest().body("{\"message\":\"" + e.getMessage().replace("SUSPENDED:", "") + "\"}");
+            if (e.getMessage() != null && e.getMessage().startsWith("SUSPENDED:")) {
+                return ResponseEntity.status(401).body("{\"message\":\"" + e.getMessage().replace("SUSPENDED:", "") + "\"}");
             }
             return ResponseEntity.badRequest().body("{\"message\":\"" + e.getMessage() + "\"}");
         }
@@ -115,6 +121,9 @@ public class PostController {
             return ResponseEntity.ok(post);
         } catch (Exception e) {
             e.printStackTrace();
+            if (e.getMessage() != null && e.getMessage().startsWith("SUSPENDED:")) {
+                return ResponseEntity.status(401).body("{\"message\":\"" + e.getMessage().replace("SUSPENDED:", "") + "\"}");
+            }
             return ResponseEntity.badRequest().body("{\"message\":\"" + e.getMessage() + "\"}");
         }
     }
@@ -133,6 +142,9 @@ public class PostController {
             return ResponseEntity.ok().body("{\"message\":\"게시글이 삭제되었습니다.\"}");
         } catch (Exception e) {
             e.printStackTrace();
+            if (e.getMessage() != null && e.getMessage().startsWith("SUSPENDED:")) {
+                return ResponseEntity.status(401).body("{\"message\":\"" + e.getMessage().replace("SUSPENDED:", "") + "\"}");
+            }
             return ResponseEntity.badRequest().body("{\"message\":\"" + e.getMessage() + "\"}");
         }
     }
@@ -151,6 +163,9 @@ public class PostController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             e.printStackTrace();
+            if (e.getMessage() != null && e.getMessage().startsWith("SUSPENDED:")) {
+                return ResponseEntity.status(401).body("{\"message\":\"" + e.getMessage().replace("SUSPENDED:", "") + "\"}");
+            }
             return ResponseEntity.badRequest().body("{\"message\":\"" + e.getMessage() + "\"}");
         }
     }
@@ -169,6 +184,9 @@ public class PostController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             e.printStackTrace();
+            if (e.getMessage() != null && e.getMessage().startsWith("SUSPENDED:")) {
+                return ResponseEntity.status(401).body("{\"message\":\"" + e.getMessage().replace("SUSPENDED:", "") + "\"}");
+            }
             return ResponseEntity.badRequest().body("{\"message\":\"" + e.getMessage() + "\"}");
         }
     }
@@ -187,6 +205,9 @@ public class PostController {
             return ResponseEntity.ok(response);
         } catch (Exception e) {
             e.printStackTrace();
+            if (e.getMessage() != null && e.getMessage().startsWith("SUSPENDED:")) {
+                return ResponseEntity.status(401).body("{\"message\":\"" + e.getMessage().replace("SUSPENDED:", "") + "\"}");
+            }
             return ResponseEntity.badRequest().body("{\"message\":\"" + e.getMessage() + "\"}");
         }
     }
@@ -217,6 +238,9 @@ public class PostController {
             return ResponseEntity.ok(comment);
         } catch (Exception e) {
             e.printStackTrace();
+            if (e.getMessage() != null && e.getMessage().startsWith("SUSPENDED:")) {
+                return ResponseEntity.status(401).body("{\"message\":\"" + e.getMessage().replace("SUSPENDED:", "") + "\"}");
+            }
             return ResponseEntity.badRequest().body("{\"message\":\"" + e.getMessage() + "\"}");
         }
     }

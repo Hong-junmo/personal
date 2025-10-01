@@ -107,6 +107,8 @@ const Write = () => {
             const urlParams = new URLSearchParams(window.location.search);
             const editId = urlParams.get('edit');
             
+            console.log('게시글 작성 시작:', { editId, title: postData.title, content: postData.content.length, images: selectedImages.length });
+            
             // FormData 사용하여 이미지와 텍스트 함께 전송
             const formData = new FormData();
             formData.append('title', postData.title);
@@ -114,6 +116,7 @@ const Write = () => {
 
             // 이미지 파일들 추가
             selectedImages.forEach((image, index) => {
+                console.log(`이미지 ${index + 1}:`, image.name, image.size, image.type);
                 formData.append('images', image);
             });
 
@@ -123,6 +126,7 @@ const Write = () => {
             
             const method = editId ? 'PUT' : 'POST';
 
+            console.log('API 호출:', { url, method });
             const response = await apiPostFormData(url, formData, { method });
 
             if (response.ok) {
@@ -135,12 +139,23 @@ const Write = () => {
                     navigate('/board');
                 }
             } else {
-                const message = editId ? '게시글 수정에 실패했습니다.' : '게시글 작성에 실패했습니다.';
-                alert(message);
+                // 오류 응답 처리
+                try {
+                    const errorData = await response.json();
+                    const errorMessage = errorData.message || (editId ? '게시글 수정에 실패했습니다.' : '게시글 작성에 실패했습니다.');
+                    alert(errorMessage);
+                } catch (parseError) {
+                    const message = editId ? '게시글 수정에 실패했습니다.' : '게시글 작성에 실패했습니다.';
+                    alert(message);
+                }
             }
         } catch (error) {
             console.error('게시글 처리 오류:', error);
-            alert('서버 연결에 문제가 발생했습니다.');
+            if (error.message && error.message.includes('정지')) {
+                // API 유틸리티에서 이미 로그아웃 처리됨
+                return;
+            }
+            alert('서버 연결에 문제가 발생했습니다: ' + error.message);
         }
     };
 
