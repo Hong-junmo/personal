@@ -74,6 +74,62 @@ public class UserService {
             throw new RuntimeException("비밀번호가 일치하지 않습니다.");
         }
         
+        // 정지 상태 확인
+        if (user.getIsSuspended() != null && user.getIsSuspended()) {
+            // 영구 정지인 경우 (suspensionEndTime이 null)
+            if (user.getSuspensionEndTime() == null) {
+                String message = "🚫 계정이 영구 정지되었습니다.\n\n" +
+                               "이 계정은 영구적으로 사용이 제한되었습니다.";
+                
+                if (user.getSuspensionReason() != null && !user.getSuspensionReason().trim().isEmpty()) {
+                    message += "\n\n정지 사유:\n" + user.getSuspensionReason();
+                }
+                
+                message += "\n\n문의사항이 있으시면 관리자에게 연락해 주세요.";
+                
+                throw new RuntimeException(message);
+            }
+            // 기간 정지인 경우
+            else if (user.getSuspensionEndTime().isAfter(java.time.LocalDateTime.now())) {
+                // 정지 시간 포맷팅
+                java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy년 MM월 dd일 HH시 mm분");
+                String formattedEndTime = user.getSuspensionEndTime().format(formatter);
+                
+                // 남은 시간 계산
+                java.time.Duration duration = java.time.Duration.between(java.time.LocalDateTime.now(), user.getSuspensionEndTime());
+                long remainingDays = duration.toDays();
+                long remainingHours = duration.toHours() % 24;
+                long remainingMinutes = duration.toMinutes() % 60;
+                
+                String remainingTime = "";
+                if (remainingDays > 0) {
+                    remainingTime = remainingDays + "일 " + remainingHours + "시간 " + remainingMinutes + "분";
+                } else if (remainingHours > 0) {
+                    remainingTime = remainingHours + "시간 " + remainingMinutes + "분";
+                } else {
+                    remainingTime = remainingMinutes + "분";
+                }
+                
+                String message = "🚫 계정이 정지되었습니다.\n\n" +
+                               "정지 해제 시간: " + formattedEndTime + "\n" +
+                               "남은 시간: " + remainingTime;
+                
+                if (user.getSuspensionReason() != null && !user.getSuspensionReason().trim().isEmpty()) {
+                    message += "\n\n정지 사유:\n" + user.getSuspensionReason();
+                }
+                
+                message += "\n\n정지 해제 후 다시 로그인해 주세요.";
+                
+                throw new RuntimeException(message);
+            } else {
+                // 정지 시간이 지났으면 정지 해제
+                user.setIsSuspended(false);
+                user.setSuspensionEndTime(null);
+                user.setSuspensionReason(null);
+                userRepository.save(user);
+            }
+        }
+        
         // JWT 토큰 생성
         String token = jwtUtil.generateToken(user.getUsername());
         
@@ -140,5 +196,32 @@ public class UserService {
             .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
         
         userRepository.delete(user);
+    }
+    
+    public void checkUserSuspensionStatus(String username) {
+        User user = userRepository.findByUsername(username)
+            .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+        
+        // 정지 상태 확인
+        if (user.getIsSuspended() != null && user.getIsSuspended()) {
+            // 영구 정지인 경우 (suspensionEndTime이 null)
+            if (user.getSuspensionEndTime() == null) {
+                throw new RuntimeException("SUSPENDED:영구 정지된 계정입니다. 관리자에게 문의하세요.");
+            }
+            // 기간 정지인 경우
+            else if (user.getSuspensionEndTime().isAfter(java.time.LocalDateTime.now())) {
+                // 정지 시간 포맷팅
+                java.time.format.DateTimeFormatter formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy년 MM월 dd일 HH시 mm분");
+                String formattedEndTime = user.getSuspensionEndTime().format(formatter);
+                
+                throw new RuntimeException("SUSPENDED:계정이 정지되었습니다. 정지 해제 시간: " + formattedEndTime);
+            } else {
+                // 정지 시간이 지났으면 정지 해제
+                user.setIsSuspended(false);
+                user.setSuspensionEndTime(null);
+                user.setSuspensionReason(null);
+                userRepository.save(user);
+            }
+        }
     }
 }

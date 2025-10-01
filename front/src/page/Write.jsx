@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { apiGet, apiPostFormData } from '../utils/api'
 
 const Write = () => {
     const navigate = useNavigate();
@@ -30,11 +31,7 @@ const Write = () => {
 
     const fetchPostForEdit = async (postId) => {
         try {
-            const response = await fetch(`http://localhost:8080/api/posts/${postId}`, {
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            });
+            const response = await apiGet(`/api/posts/${postId}`);
 
             if (response.ok) {
                 const data = await response.json();
@@ -121,19 +118,12 @@ const Write = () => {
             });
 
             const url = editId 
-                ? `http://localhost:8080/api/posts/${editId}`
-                : 'http://localhost:8080/api/posts';
+                ? `/api/posts/${editId}`
+                : '/api/posts';
             
             const method = editId ? 'PUT' : 'POST';
 
-            const response = await fetch(url, {
-                method: method,
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                    // Content-Type은 FormData 사용 시 자동 설정되므로 제거
-                },
-                body: formData
-            });
+            const response = await apiPostFormData(url, formData, { method });
 
             if (response.ok) {
                 const message = editId ? '게시글이 수정되었습니다.' : '게시글이 작성되었습니다.';
@@ -340,20 +330,6 @@ const Write = () => {
                     justifyContent: 'flex-end'
                 }}>
                     <button
-                        onClick={handleCancel}
-                        style={{
-                            padding: '10px 20px',
-                            backgroundColor: '#6c757d',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontSize: '14px'
-                        }}
-                    >
-                        취소
-                    </button>
-                    <button
                         onClick={handleSubmit}
                         style={{
                             padding: '10px 20px',
@@ -366,6 +342,20 @@ const Write = () => {
                         }}
                     >
                         작성완료
+                    </button>
+                    <button
+                        onClick={handleCancel}
+                        style={{
+                            padding: '10px 20px',
+                            backgroundColor: '#6c757d',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                            fontSize: '14px'
+                        }}
+                    >
+                        취소
                     </button>
                 </div>
             </div>

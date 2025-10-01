@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { apiGet } from '../utils/api'
 
 const Board = () => {
   const navigate = useNavigate();
@@ -23,11 +24,7 @@ const Board = () => {
 
   const fetchPosts = async (page = 1) => {
     try {
-      const response = await fetch(`http://localhost:8080/api/posts?page=${page}&size=${postsPerPage}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      });
+      const response = await apiGet(`/api/posts?page=${page}&size=${postsPerPage}`);
 
       if (response.ok) {
         const data = await response.json();
@@ -44,6 +41,7 @@ const Board = () => {
       }
     } catch (error) {
       console.error('게시글 조회 오류:', error);
+      // API 유틸리티에서 이미 정지 상태 처리됨
     } finally {
       setLoading(false);
     }
@@ -212,7 +210,7 @@ const Board = () => {
           <div>번호</div>
           <div>제목</div>
           <div>글쓴이</div>
-          <div>조회</div>
+          <div>조회수</div>
           <div>시간</div>
         </div>
 

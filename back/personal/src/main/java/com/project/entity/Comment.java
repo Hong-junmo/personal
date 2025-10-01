@@ -24,6 +24,9 @@ public class Comment {
     @Column(name = "content", nullable = false, columnDefinition = "TEXT")
     private String content;
     
+    @Column(name = "parent_id")
+    private Long parentId; // 대댓글의 경우 부모 댓글 ID
+    
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
     

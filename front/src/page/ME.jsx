@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { apiGet, apiPost, apiDelete } from '../utils/api'
 
 const ME = () => {
     const navigate = useNavigate();
@@ -10,6 +11,7 @@ const ME = () => {
         newPassword: '',
         confirmPassword: ''
     });
+    const [isAdmin, setIsAdmin] = useState(false);
 
     useEffect(() => {
         // 로그인 상태 확인
@@ -24,16 +26,12 @@ const ME = () => {
 
         // 사용자 정보 가져오기
         fetchUserInfo();
+        checkAdminRole();
     }, [navigate]);
 
     const fetchUserInfo = async () => {
         try {
-            const response = await fetch('http://localhost:8080/api/users/profile', {
-                method: 'GET',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            });
+            const response = await apiGet('/api/users/profile');
 
             if (response.ok) {
                 const data = await response.json();
@@ -48,6 +46,21 @@ const ME = () => {
             console.error('사용자 정보 조회 오류:', error);
         }
     };
+
+    const checkAdminRole = async () => {
+        try {
+            const response = await apiGet('/api/admin/check-role');
+
+            if (response.ok) {
+                const data = await response.json();
+                setIsAdmin(data.isAdmin);
+            }
+        } catch (error) {
+            console.error('관리자 권한 확인 오류:', error);
+        }
+    };
+
+
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -69,16 +82,7 @@ const ME = () => {
         }
 
         try {
-            const response = await fetch('http://localhost:8080/api/users/change-username', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({
-                    newUsername: userInfo.newUsername
-                })
-            });
+            const response = await apiPost('/api/users/change-username', { newUsername: userInfo.newUsername }, { method: 'PUT' });
 
             if (response.ok) {
                 alert('아이디가 변경되었습니다. 다시 로그인해주세요.');
@@ -98,16 +102,7 @@ const ME = () => {
     const handleUpdateProfile = async () => {
         try {
             // 닉네임 변경 API 호출
-            const response = await fetch('http://localhost:8080/api/users/update-profile', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({
-                    nickname: userInfo.nickname
-                })
-            });
+            const response = await apiPost('/api/users/update-profile', { nickname: userInfo.nickname }, { method: 'PUT' });
 
             if (response.ok) {
                 localStorage.setItem('nickname', userInfo.nickname);
@@ -134,16 +129,7 @@ const ME = () => {
         }
 
         try {
-            const response = await fetch('http://localhost:8080/api/users/change-password', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({
-                    newPassword: userInfo.newPassword
-                })
-            });
+            const response = await apiPost('/api/users/change-password', { newPassword: userInfo.newPassword }, { method: 'PUT' });
 
             if (response.ok) {
                 alert('비밀번호가 변경되었습니다.');
@@ -174,12 +160,7 @@ const ME = () => {
         }
 
         try {
-            const response = await fetch('http://localhost:8080/api/users/delete-account', {
-                method: 'DELETE',
-                headers: {
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                }
-            });
+            const response = await apiDelete('/api/users/delete-account');
 
             if (response.ok) {
                 localStorage.removeItem('token');
@@ -195,12 +176,9 @@ const ME = () => {
         }
     };
 
-    return (
+    const renderProfileTab = () => (
         <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            padding: '40px 20px',
+            padding: '20px',
             maxWidth: '500px',
             margin: '0 auto'
         }}>
@@ -357,6 +335,76 @@ const ME = () => {
                 >
                     회원탈퇴
                 </button>
+            </div>
+        </div>
+    );
+
+
+
+    return (
+        <div style={{
+            display: 'flex',
+            minHeight: '100vh',
+            backgroundColor: '#f8f9fa'
+        }}>
+            {/* 왼쪽 사이드바 */}
+            <div style={{
+                width: '250px',
+                backgroundColor: 'white',
+                borderRight: '1px solid #ddd',
+                padding: '20px 0'
+            }}>
+                <div style={{
+                    padding: '0 20px',
+                    marginBottom: '30px'
+                }}>
+                    <h2 style={{ margin: '0', color: '#333', fontSize: '20px' }}>설정</h2>
+                </div>
+
+                <nav>
+                    <button
+                        style={{
+                            width: '100%',
+                            padding: '15px 20px',
+                            backgroundColor: '#007bff',
+                            color: 'white',
+                            border: 'none',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            fontSize: '16px',
+                            borderLeft: '4px solid #0056b3'
+                        }}
+                    >
+                        👤 내 프로필
+                    </button>
+                    
+                    {isAdmin && (
+                        <button
+                            onClick={() => navigate('/master')}
+                            style={{
+                                width: '100%',
+                                padding: '15px 20px',
+                                backgroundColor: 'transparent',
+                                color: '#333',
+                                border: 'none',
+                                textAlign: 'left',
+                                cursor: 'pointer',
+                                fontSize: '16px',
+                                borderLeft: '4px solid transparent'
+                            }}
+                        >
+                            🛡️ 관리자 페이지
+                        </button>
+                    )}
+                </nav>
+            </div>
+
+            {/* 오른쪽 컨텐츠 영역 */}
+            <div style={{
+                flex: 1,
+                backgroundColor: '#f8f9fa'
+            }}>
+                {renderProfileTab()}
             </div>
         </div>
     )

@@ -50,11 +50,27 @@ public class UserController {
             LoginResponse response = userService.login(request);
             return ResponseEntity.ok(response);
         } catch (Exception e) {
-            return ResponseEntity.badRequest()
-                .body(LoginResponse.builder()
-                    .success(false)
-                    .message("로그인에 실패했습니다: " + e.getMessage())
-                    .build());
+            // 정지 메시지인 경우 그대로 전달, 그 외에는 일반 로그인 실패 메시지
+            String message = e.getMessage();
+            if (message != null && (message.contains("🚫 계정이") || 
+                                   message.contains("영구적으로 사용이 제한") ||
+                                   message.contains("정지 해제 시간:") ||
+                                   message.contains("영구 정지") ||
+                                   message.contains("남은 시간:"))) {
+                // 정지 메시지는 그대로 전달
+                return ResponseEntity.badRequest()
+                    .body(LoginResponse.builder()
+                        .success(false)
+                        .message(message)
+                        .build());
+            } else {
+                // 일반 로그인 실패
+                return ResponseEntity.badRequest()
+                    .body(LoginResponse.builder()
+                        .success(false)
+                        .message("로그인에 실패했습니다: " + message)
+                        .build());
+            }
         }
     }
     
@@ -62,9 +78,17 @@ public class UserController {
     public ResponseEntity<UserProfileResponse> getProfile(@RequestHeader("Authorization") String token) {
         try {
             String username = userService.getUsernameFromToken(token.replace("Bearer ", ""));
+            // 사용자 정지 상태 확인
+            userService.checkUserSuspensionStatus(username);
             UserProfileResponse profile = userService.getUserProfile(username);
             return ResponseEntity.ok(profile);
         } catch (Exception e) {
+            if (e.getMessage().startsWith("SUSPENDED:")) {
+                return ResponseEntity.status(401)
+                    .body(UserProfileResponse.builder()
+                        .message(e.getMessage().replace("SUSPENDED:", ""))
+                        .build());
+            }
             return ResponseEntity.badRequest().build();
         }
     }
@@ -74,9 +98,14 @@ public class UserController {
                                           @RequestHeader("Authorization") String token) {
         try {
             String currentUsername = userService.getUsernameFromToken(token.replace("Bearer ", ""));
+            // 사용자 정지 상태 확인
+            userService.checkUserSuspensionStatus(currentUsername);
             userService.changeUsername(currentUsername, request);
             return ResponseEntity.ok().body("{\"message\":\"아이디가 변경되었습니다.\"}");
         } catch (Exception e) {
+            if (e.getMessage().startsWith("SUSPENDED:")) {
+                return ResponseEntity.status(401).body("{\"message\":\"" + e.getMessage().replace("SUSPENDED:", "") + "\"}");
+            }
             return ResponseEntity.badRequest().body("{\"message\":\"" + e.getMessage() + "\"}");
         }
     }
@@ -86,9 +115,14 @@ public class UserController {
                                          @RequestHeader("Authorization") String token) {
         try {
             String username = userService.getUsernameFromToken(token.replace("Bearer ", ""));
+            // 사용자 정지 상태 확인
+            userService.checkUserSuspensionStatus(username);
             userService.updateProfile(username, request);
             return ResponseEntity.ok().body("{\"message\":\"프로필이 업데이트되었습니다.\"}");
         } catch (Exception e) {
+            if (e.getMessage().startsWith("SUSPENDED:")) {
+                return ResponseEntity.status(401).body("{\"message\":\"" + e.getMessage().replace("SUSPENDED:", "") + "\"}");
+            }
             return ResponseEntity.badRequest().body("{\"message\":\"" + e.getMessage() + "\"}");
         }
     }
@@ -98,9 +132,14 @@ public class UserController {
                                           @RequestHeader("Authorization") String token) {
         try {
             String username = userService.getUsernameFromToken(token.replace("Bearer ", ""));
+            // 사용자 정지 상태 확인
+            userService.checkUserSuspensionStatus(username);
             userService.changePassword(username, request);
             return ResponseEntity.ok().body("{\"message\":\"비밀번호가 변경되었습니다.\"}");
         } catch (Exception e) {
+            if (e.getMessage().startsWith("SUSPENDED:")) {
+                return ResponseEntity.badRequest().body("{\"message\":\"" + e.getMessage().replace("SUSPENDED:", "") + "\"}");
+            }
             return ResponseEntity.badRequest().body("{\"message\":\"" + e.getMessage() + "\"}");
         }
     }

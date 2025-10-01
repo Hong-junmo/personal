@@ -40,6 +40,7 @@ public class PostService {
     private final UserRepository userRepository;
     private final CommentRepository commentRepository;
     private final JwtUtil jwtUtil;
+    private final UserService userService;
     
     public String getUsernameFromToken(String token) {
         return jwtUtil.getUsernameFromToken(token);
@@ -53,6 +54,9 @@ public class PostService {
     }
     
     public PostResponse createPost(String title, String content, List<MultipartFile> images, String username) {
+        // 사용자 정지 상태 확인
+        userService.checkUserSuspensionStatus(username);
+        
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
         
@@ -82,6 +86,22 @@ public class PostService {
                 .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다."));
         
         return convertToResponse(post);
+    }
+    
+    public void increaseViewCount(Long id, String username) {
+        Post post = postRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다."));
+        
+        // 작성자 본인이 조회하는 경우 조회수 증가하지 않음
+        if (username != null) {
+            User user = userRepository.findByUsername(username).orElse(null);
+            if (user != null && post.getAuthorId().equals(user.getId())) {
+                return; // 본인 게시글은 조회수 증가하지 않음
+            }
+        }
+        
+        post.setViewCount(post.getViewCount() + 1);
+        postRepository.save(post);
     }
     
     public List<PostImageResponse> getPostImages(Long postId) {
@@ -137,6 +157,9 @@ public class PostService {
     }
     
     public PostResponse updatePost(Long id, String title, String content, List<MultipartFile> images, String username) {
+        // 사용자 정지 상태 확인
+        userService.checkUserSuspensionStatus(username);
+        
         Post post = postRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다."));
         
@@ -165,6 +188,9 @@ public class PostService {
     }
     
     public void deletePost(Long id, String username) {
+        // 사용자 정지 상태 확인
+        userService.checkUserSuspensionStatus(username);
+        
         Post post = postRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다."));
         
@@ -182,6 +208,9 @@ public class PostService {
     }
     
     public PostLikeResponse toggleLike(Long postId, String username) {
+        // 사용자 정지 상태 확인
+        userService.checkUserSuspensionStatus(username);
+        
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
         
@@ -225,6 +254,9 @@ public class PostService {
     }
     
     public PostLikeResponse toggleDislike(Long postId, String username) {
+        // 사용자 정지 상태 확인
+        userService.checkUserSuspensionStatus(username);
+        
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
         
@@ -289,38 +321,116 @@ public class PostService {
     }
     
     public List<CommentResponse> getComments(Long postId) {
-        List<Comment> comments = commentRepository.findByPostIdOrderByCreatedAtAsc(postId);
-        return comments.stream()
-                .map(this::convertToCommentResponse)
+        // 부모 댓글만 가져오기 (parentId가 null인 것들)
+        List<Comment> parentComments = commentRepository.findByPostIdAndParentIdIsNullOrderByCreatedAtAsc(postId);
+        
+        return parentComments.stream()
+                .map(this::convertToCommentResponseWithReplies)
                 .collect(Collectors.toList());
     }
     
-    public CommentResponse createComment(Long postId, String content, String username) {
+    public CommentResponse createComment(Long postId, String content, Long parentId, String username) {
+        // 사용자 정지 상태 확인
+        userService.checkUserSuspensionStatus(username);
+        
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
         
         Post post = postRepository.findById(postId)
                 .orElseThrow(() -> new RuntimeException("게시글을 찾을 수 없습니다."));
         
+        // 대댓글인 경우 부모 댓글 존재 확인
+        if (parentId != null) {
+            commentRepository.findById(parentId)
+                    .orElseThrow(() -> new RuntimeException("부모 댓글을 찾을 수 없습니다."));
+        }
+        
         Comment comment = new Comment();
         comment.setPostId(postId);
         comment.setUserId(user.getId());
         comment.setAuthorNickname(user.getNickname());
         comment.setContent(content);
+        comment.setParentId(parentId);
         comment.setCreatedAt(LocalDateTime.now());
         
         Comment savedComment = commentRepository.save(comment);
         return convertToCommentResponse(savedComment);
     }
     
+    public CommentResponse updateComment(Long commentId, String content, String username) {
+        // 사용자 정지 상태 확인
+        userService.checkUserSuspensionStatus(username);
+        
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new RuntimeException("댓글을 찾을 수 없습니다."));
+        
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+        
+        // 작성자 확인
+        if (!comment.getUserId().equals(user.getId())) {
+            throw new RuntimeException("댓글을 수정할 권한이 없습니다.");
+        }
+        
+        comment.setContent(content);
+        comment.setUpdatedAt(LocalDateTime.now());
+        
+        Comment updatedComment = commentRepository.save(comment);
+        return convertToCommentResponse(updatedComment);
+    }
+    
+    public void deleteComment(Long commentId, String username) {
+        // 사용자 정지 상태 확인
+        userService.checkUserSuspensionStatus(username);
+        
+        Comment comment = commentRepository.findById(commentId)
+                .orElseThrow(() -> new RuntimeException("댓글을 찾을 수 없습니다."));
+        
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new RuntimeException("사용자를 찾을 수 없습니다."));
+        
+        // 작성자 확인
+        if (!comment.getUserId().equals(user.getId())) {
+            throw new RuntimeException("댓글을 삭제할 권한이 없습니다.");
+        }
+        
+        // 대댓글들도 함께 삭제
+        List<Comment> replies = commentRepository.findByParentIdOrderByCreatedAtAsc(commentId);
+        commentRepository.deleteAll(replies);
+        
+        commentRepository.delete(comment);
+    }
+    
     private CommentResponse convertToCommentResponse(Comment comment) {
         return CommentResponse.builder()
                 .id(comment.getId())
                 .postId(comment.getPostId())
+                .userId(comment.getUserId())
                 .authorNickname(comment.getAuthorNickname())
                 .content(comment.getContent())
+                .parentId(comment.getParentId())
                 .createdAt(comment.getCreatedAt())
                 .updatedAt(comment.getUpdatedAt())
+                .build();
+    }
+    
+    private CommentResponse convertToCommentResponseWithReplies(Comment comment) {
+        // 대댓글들 가져오기
+        List<Comment> replies = commentRepository.findByParentIdOrderByCreatedAtAsc(comment.getId());
+        List<CommentResponse> replyResponses = replies.stream()
+                .map(this::convertToCommentResponse)
+                .collect(Collectors.toList());
+        
+        return CommentResponse.builder()
+                .id(comment.getId())
+                .postId(comment.getPostId())
+                .userId(comment.getUserId())
+                .authorNickname(comment.getAuthorNickname())
+                .content(comment.getContent())
+                .parentId(comment.getParentId())
+                .createdAt(comment.getCreatedAt())
+                .updatedAt(comment.getUpdatedAt())
+                .replies(replyResponses)
                 .build();
     }
     

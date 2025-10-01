@@ -1,6 +1,7 @@
 import React from 'react'
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { apiGet } from '../utils/api'
 
 const Header = () => {
 
@@ -11,14 +12,25 @@ const Header = () => {
   const [userNickname, setUserNickname] = useState('');
   const inputRef = useRef(null);
 
-  // 로그인 상태 확인
+  // 로그인 상태 및 정지 상태 확인
   useEffect(() => {
-    const checkLoginStatus = () => {
+    const checkLoginStatus = async () => {
       const token = localStorage.getItem('token');
       const nickname = localStorage.getItem('nickname');
+      
       if (token && nickname) {
-        setIsLoggedIn(true);
-        setUserNickname(nickname);
+        try {
+          // 사용자 프로필 조회로 정지 상태 확인
+          const response = await apiGet('/api/users/profile');
+          if (response.ok) {
+            setIsLoggedIn(true);
+            setUserNickname(nickname);
+          }
+        } catch (error) {
+          // API 유틸리티에서 이미 로그아웃 처리됨
+          setIsLoggedIn(false);
+          setUserNickname('');
+        }
       } else {
         setIsLoggedIn(false);
         setUserNickname('');

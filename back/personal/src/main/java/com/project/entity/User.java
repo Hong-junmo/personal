@@ -29,8 +29,26 @@ public class User {
     @Column(name = "created_at")
     private LocalDateTime createdAt;
     
+    @Column(name = "role", nullable = false)
+    private String role = "USER"; // USER, ADMIN, OPERATOR
+    
+    @Column(name = "is_suspended")
+    private Boolean isSuspended = false;
+    
+    @Column(name = "suspension_end_time")
+    private LocalDateTime suspensionEndTime;
+    
+    @Column(name = "suspension_reason")
+    private String suspensionReason;
+    
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
+        if (role == null) {
+            role = "USER";
+        }
+        if (isSuspended == null) {
+            isSuspended = false;
+        }
     }
 }

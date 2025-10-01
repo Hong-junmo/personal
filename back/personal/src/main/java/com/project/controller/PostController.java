@@ -53,6 +53,9 @@ public class PostController {
             return ResponseEntity.ok(post);
         } catch (Exception e) {
             e.printStackTrace();
+            if (e.getMessage().startsWith("SUSPENDED:")) {
+                return ResponseEntity.badRequest().body("{\"message\":\"" + e.getMessage().replace("SUSPENDED:", "") + "\"}");
+            }
             return ResponseEntity.badRequest().body("{\"message\":\"" + e.getMessage() + "\"}");
         }
     }
@@ -64,6 +67,24 @@ public class PostController {
             return ResponseEntity.ok(post);
         } catch (Exception e) {
             return ResponseEntity.badRequest().build();
+        }
+    }
+    
+    @PostMapping("/{id}/view")
+    public ResponseEntity<?> increaseViewCount(
+            @PathVariable Long id,
+            @RequestHeader(value = "Authorization", required = false) String token) {
+        try {
+            String username = null;
+            if (token != null && token.startsWith("Bearer ")) {
+                username = postService.getUsernameFromToken(token.replace("Bearer ", ""));
+            }
+            
+            postService.increaseViewCount(id, username);
+            return ResponseEntity.ok().body("{\"message\":\"조회수가 증가되었습니다.\"}");
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.badRequest().body("{\"message\":\"" + e.getMessage() + "\"}");
         }
     }
     
@@ -192,11 +213,13 @@ public class PostController {
             }
             
             String username = postService.getUsernameFromToken(token.replace("Bearer ", ""));
-            CommentResponse comment = postService.createComment(id, request.getContent(), username);
+            CommentResponse comment = postService.createComment(id, request.getContent(), request.getParentId(), username);
             return ResponseEntity.ok(comment);
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.badRequest().body("{\"message\":\"" + e.getMessage() + "\"}");
         }
     }
+    
+
 }
